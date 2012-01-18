@@ -1,7 +1,9 @@
 // emile.js (c) 2009 Thomas Fuchs
 // Licensed under the terms of the MIT license.
+// Animation processing and Internet Explorer opacity handling added by Erik Raetz
 
 (function(emile, container){
+
   var parseEl = document.createElement('div'),
     props = ('backgroundColor borderBottomColor borderBottomWidth borderLeftColor borderLeftWidth '+
     'borderRightColor borderRightWidth borderSpacing borderTopColor borderTopWidth bottom color fontSize '+
@@ -20,31 +22,44 @@
     while(j--) { tmp = ~~(v[j+3]+(v[j]-v[j+3])*pos); r.push(tmp<0?0:tmp>255?255:tmp); }
     return 'rgb('+r.join(',')+')';
   }
-  
+
   function parse(prop){
+    if (typeof prop != 'string') prop = prop.toString();
     var p = parseFloat(prop), q = prop.replace(/^[\-\d\.]+/,'');
     return isNaN(p) ? { v: q, f: color, u: ''} : { v: p, f: interpolate, u: q };
   }
-  
+
   function normalize(style){
     var css, rules = {}, i = props.length, v;
     parseEl.innerHTML = '<div style="'+style+'"></div>';
     css = parseEl.childNodes[0].style;
     while(i--) if(v = css[props[i]]) rules[props[i]] = parse(v);
     return rules;
-  }  
-  
+  }
+
   container[emile] = function(el, style, opts, after){
     el = typeof el == 'string' ? document.getElementById(el) : el;
-    opts = opts || {};
+    opts = opts || {}; if(!el.processingDir) el.processingDir = {};
     var target = normalize(style), comp = el.currentStyle ? el.currentStyle : getComputedStyle(el, null),
       prop, current = {}, start = +new Date, dur = opts.duration||200, finish = start+dur, interval,
+      //internet explorer css functionality check (http://blogs.msdn.com/b/ie/archive/2010/08/17/ie9-opacity-and-alpha.aspx)
+      chkOpacity = typeof document.createElement("div").style.opacity === 'undefined' ? false : true,
+      chkFilter = typeof document.createElement("div").style.filter === 'undefined' ? false : true,
       easing = opts.easing || function(pos){ return (-Math.cos(pos*Math.PI)/2) + 0.5; };
     for(prop in target) current[prop] = parse(comp[prop]);
+    if(target[prop].v > current[prop].v)
+      el.processingDir[prop] = 'asc';
+    else if(target[prop].v < current[prop].v)
+      el.processingDir[prop] = 'desc';
     interval = setInterval(function(){
       var time = +new Date, pos = time>finish ? 1 : (time-start)/dur;
-      for(prop in target)
-        el.style[prop] = target[prop].f(current[prop].v,target[prop].v,easing(pos)) + target[prop].u;
+      for(prop in target) {
+        if(((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc')))
+          clearInterval(interval); //animation direction got changed, quit the interval
+        var v = target[prop].f(current[prop].v,target[prop].v,easing(pos)) + target[prop].u;
+        el.style[prop] = v;
+        if((prop == "opacity") && (chkOpacity == false) && (chkFilter == true)) { el.style.filter = "alpha(opacity="+(v*100)+")"; }  // use filter only when opacity is not found and filters is known
+      }
       if(time>finish) { clearInterval(interval); opts.after && opts.after(); after && setTimeout(after,1); }
     },10);
   }
