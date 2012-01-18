@@ -40,7 +40,10 @@
   var vendors = ['ms', 'moz', 'webkit', 'o'];
   for(var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
     window.requestAnimationFrame = window[vendors[i]+'RequestAnimationFrame'];
+    window.cancelAnimationFrame = window[vendors[i]+'CancelAnimationFrame'] || window[vendors[i]+'RequestCancelAnimationFrame'];
   }
+  if (!window.requestAnimationFrame) window.requestAnimationFrame = function(callback, element) { return window.setTimeout(callback, 15); };
+  if (!window.cancelAnimationFrame) window.cancelAnimationFrame = function(interval) { clearTimeout(interval); };
 
   container[emile] = function(el, style, opts, after){
     el = typeof el == 'string' ? document.getElementById(el) : el;
@@ -52,31 +55,18 @@
       chkFilter = typeof document.createElement("div").style.filter === 'undefined' ? false : true,
       easing = opts.easing || function(pos){ return (-Math.cos(pos*Math.PI)/2) + 0.5; };
     for(prop in target) current[prop] = parse(comp[prop]);
-    if(target[prop].v > current[prop].v)
-      el.processingDir[prop] = 'asc';
-    else if(target[prop].v < current[prop].v)
-      el.processingDir[prop] = 'desc';
+    if(target[prop].v > current[prop].v) el.processingDir[prop] = 'asc';
+    else if(target[prop].v < current[prop].v) el.processingDir[prop] = 'desc';
     var loop = function(){
       var quit = false, time = +new Date, pos = time>finish ? 1 : (time-start)/dur;
       for(prop in target) {
-        if(((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc'))) {
-          quit = true;
-          if(!window.requestAnimationFrame) clearInterval(interval);
-          break;
-        }
+        if(((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc'))) { quit = true; cancelAnimationFrame(interval); break; }
         var v = target[prop].f(current[prop].v,target[prop].v,easing(pos)) + target[prop].u;
         el.style[prop] = v;
         if((prop == "opacity") && (chkOpacity == false) && (chkFilter == true)) { el.style.filter = "alpha(opacity="+(v*100)+")"; }  // use filter only when opacity is not found and filters is known
       }
-      if(time>finish) {
-        if(!window.requestAnimationFrame) clearInterval(interval);
-        opts.after && opts.after();
-        after && setTimeout(after,1);
-      } else if (window.requestAnimationFrame && quit == false) {
-        requestAnimationFrame(loop, el);
-      }
+      if(time>finish) { cancelAnimationFrame(interval); opts.after && opts.after(); after && setTimeout(after,1); } else if (quit == false) { requestAnimationFrame(loop, el); }
     }
-    if (!window.requestAnimationFrame) interval = setInterval(loop,10);
-    else interval = requestAnimationFrame(loop, el);
+    interval = requestAnimationFrame(loop, el);
   }
 })('emile', this);
