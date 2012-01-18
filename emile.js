@@ -37,6 +37,11 @@
     return rules;
   }
 
+  var vendors = ['ms', 'moz', 'webkit', 'o'];
+  for(var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
+    window.requestAnimationFrame = window[vendors[i]+'RequestAnimationFrame'];
+  }
+
   container[emile] = function(el, style, opts, after){
     el = typeof el == 'string' ? document.getElementById(el) : el;
     opts = opts || {}; if(!el.processingDir) el.processingDir = {};
@@ -51,16 +56,27 @@
       el.processingDir[prop] = 'asc';
     else if(target[prop].v < current[prop].v)
       el.processingDir[prop] = 'desc';
-    interval = setInterval(function(){
-      var time = +new Date, pos = time>finish ? 1 : (time-start)/dur;
+    var loop = function(){
+      var quit = false, time = +new Date, pos = time>finish ? 1 : (time-start)/dur;
       for(prop in target) {
-        if(((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc')))
-          clearInterval(interval); //animation direction got changed, quit the interval
+        if(((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc'))) {
+          quit = true;
+          if(!window.requestAnimationFrame) clearInterval(interval);
+          break;
+        }
         var v = target[prop].f(current[prop].v,target[prop].v,easing(pos)) + target[prop].u;
         el.style[prop] = v;
         if((prop == "opacity") && (chkOpacity == false) && (chkFilter == true)) { el.style.filter = "alpha(opacity="+(v*100)+")"; }  // use filter only when opacity is not found and filters is known
       }
-      if(time>finish) { clearInterval(interval); opts.after && opts.after(); after && setTimeout(after,1); }
-    },10);
+      if(time>finish) {
+        if(!window.requestAnimationFrame) clearInterval(interval);
+        opts.after && opts.after();
+        after && setTimeout(after,1);
+      } else if (window.requestAnimationFrame && quit == false) {
+        requestAnimationFrame(loop, el);
+      }
+    }
+    if (!window.requestAnimationFrame) interval = setInterval(loop,10);
+    else interval = requestAnimationFrame(loop, el);
   }
 })('emile', this);
