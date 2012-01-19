@@ -42,6 +42,8 @@
     window.requestAnimationFrame = window[vendors[i]+'RequestAnimationFrame'];
     window.cancelAnimationFrame = window[vendors[i]+'CancelAnimationFrame'] || window[vendors[i]+'RequestCancelAnimationFrame'];
   }
+  if (window.requestAnimationFrame) console.log('using the new requestAnimationFrame');
+  else console.log('using setTimeout for animation');
   if (!window.requestAnimationFrame) window.requestAnimationFrame = function(callback, element) { return window.setTimeout(callback, 15); };
   if (!window.cancelAnimationFrame) window.cancelAnimationFrame = function(interval) { clearTimeout(interval); };
 
@@ -65,7 +67,7 @@
         el.style[prop] = v;
         if((prop == "opacity") && (chkOpacity == false) && (chkFilter == true)) { el.style.filter = "alpha(opacity="+(v*100)+")"; }  // use filter only when opacity is not found and filters is known
       }
-      if(time>finish) { cancelAnimationFrame(interval); opts.after && opts.after(); after && setTimeout(after,1); } else if (quit == false) { requestAnimationFrame(loop, el); }
+      if(time>finish) { cancelAnimationFrame(interval); opts.after && opts.after(); after && setTimeout(after,1); } else if (quit == false) { interval = requestAnimationFrame(loop, el); }
     }
     interval = requestAnimationFrame(loop, el);
   }
