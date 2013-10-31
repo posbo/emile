@@ -42,8 +42,7 @@
     window.requestAnimationFrame = window[vendors[i]+'RequestAnimationFrame'];
     window.cancelAnimationFrame = window[vendors[i]+'CancelAnimationFrame'] || window[vendors[i]+'RequestCancelAnimationFrame'];
   }
-  if (window.requestAnimationFrame) console.log('using the new requestAnimationFrame');
-  else console.log('using setTimeout for animation');
+
   if (!window.requestAnimationFrame) window.requestAnimationFrame = function(callback, element) { return window.setTimeout(callback, 15); };
   if (!window.cancelAnimationFrame) window.cancelAnimationFrame = function(interval) { clearTimeout(interval); };
 
