@@ -11,9 +11,15 @@
     'maxWidth minHeight minWidth opacity outlineColor outlineOffset outlineWidth paddingBottom paddingLeft '+
     'paddingRight paddingTop right textIndent top width wordSpacing zIndex').split(' ');
 
-  function interpolate(source,target,pos){ return (source+(target-source)*pos).toFixed(3); }
-  function s(str, p, c){ return str.substr(p,c||1); }
-  function color(source,target,pos){
+  function interpolate(source,target,pos) {
+      return parseFloat((source+(target-source)*pos)).toFixed(3);
+  }
+
+  function s(str, p, c) {
+      return str.substr(p,c||1);
+  }
+
+  function color(source,target,pos) {
     var i = 2, j, c, tmp, v = [], r = [];
     while(j=3,c=arguments[i-1],i--)
       if(s(c,0)=='r') { c = c.match(/\d+/g); while(j--) v.push(~~c[j]); } else {
@@ -37,6 +43,16 @@
     return rules;
   }
 
+    /** thanks @jquery */
+    function camelCase (string) {
+        var rdashAlpha = /-([a-z])/ig;
+        var fcamelCase = function( all, letter  ) {
+            return letter.toUpperCase();
+        }
+
+        return string.replace( rdashAlpha, fcamelCase  );
+    }
+
   var vendors = ['ms', 'moz', 'webkit', 'o'];
   for(var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
     window.requestAnimationFrame = window[vendors[i]+'RequestAnimationFrame'];
@@ -49,21 +65,35 @@
   container[emile] = function(el, style, opts, after){
     el = typeof el == 'string' ? document.getElementById(el) : el;
     opts = opts || {}; if(!el.processingDir) el.processingDir = {};
+
     var target = normalize(style), comp = el.currentStyle ? el.currentStyle : getComputedStyle(el, null),
       prop, current = {}, start = +new Date, dur = opts.duration||200, finish = start+dur, interval,
       //internet explorer css functionality check (http://blogs.msdn.com/b/ie/archive/2010/08/17/ie9-opacity-and-alpha.aspx)
       chkOpacity = typeof document.createElement("div").style.opacity === 'undefined' ? false : true,
       chkFilter = typeof document.createElement("div").style.filter === 'undefined' ? false : true,
       easing = opts.easing || function(pos){ return (-Math.cos(pos*Math.PI)/2) + 0.5; };
-    for(prop in target) current[prop] = parse(comp[prop]);
+
+    for (prop in target) current[prop] = parse(comp[prop]);
+
     if(target[prop].v > current[prop].v) el.processingDir[prop] = 'asc';
     else if(target[prop].v < current[prop].v) el.processingDir[prop] = 'desc';
+
     var loop = function(){
+
       var quit = false, time = +new Date, pos = time>finish ? 1 : (time-start)/dur;
-      for(prop in target) {
-        if(((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc'))) { quit = true; cancelAnimationFrame(interval); break; }
+
+      for (prop in target) {
+        if (((target[prop].v > current[prop].v) && (el.processingDir[prop] == 'desc')) || ((target[prop].v < current[prop].v) && (el.processingDir[prop] == 'asc'))) { quit = true; cancelAnimationFrame(interval); break; }
         var v = target[prop].f(current[prop].v,target[prop].v,easing(pos)) + target[prop].u;
-        el.style[prop] = v;
+
+        if ('setProperty' in el.style) {
+            el.style.setProperty(prop, v, 'important');
+        } else {
+            // For IE < 9
+            name = camelCase(prop);
+            el.style.setAttribute(prop, v, 'important');
+        }
+
         if((prop == "opacity") && (chkOpacity == false) && (chkFilter == true)) { el.style.filter = "alpha(opacity="+(v*100)+")"; }  // use filter only when opacity is not found and filters is known
       }
       if(time>finish) { cancelAnimationFrame(interval); opts.after && opts.after(); after && setTimeout(after,1); } else if (quit == false) { interval = requestAnimationFrame(loop, el); }
